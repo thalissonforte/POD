@@ -69,16 +69,24 @@ int ler_menor_arquivos(int deslocamento_base, int arquivo_base, int *deslocament
   int conteudo_1, conteudo_2, conteudo_3, menor = VALOR_GRANDE;
   int *arq_menor;
 
+  // FAZER COM QUE OS ARQUIVOS LEIAM NAS POSIÇÕES CORRETAS
+  fseek(arqstemp[arquivo_base], *deslocamento_1 * sizeof(int), 0);
+  fseek(arqstemp[arquivo_base + 1], *deslocamento_2 * sizeof(int), 0);
+  fseek(arqstemp[arquivo_base + 2], *deslocamento_3 * sizeof(int), 0);
+
+  printf("\tDeslocamento 1:%i 2:%i 3:%i\n", *deslocamento_1, *deslocamento_2, *deslocamento_3);
   // CONTEUDO PRIMEIRO ARQUIVO
   if(*deslocamento_1 < deslocamento_base + 3){
-    fread(&conteudo_1, sizeof(int), *deslocamento_1 + 1, arqstemp[arquivo_base]);
+    fread(&conteudo_1, sizeof(int), 1, arqstemp[arquivo_base]);
     printf("Cont 1: %i\n",conteudo_1);
-    menor = conteudo_1;
-    arq_menor = deslocamento_1;
+    if(conteudo_1 < menor){
+      menor = conteudo_1;
+      arq_menor = deslocamento_1;
+    }
   }
   // CONTEUDO SEGUNDO ARQUIVO
   if(*deslocamento_2 < deslocamento_base + 3){
-    fread(&conteudo_2, sizeof(int), *deslocamento_2 + 1, arqstemp[arquivo_base + 1]);
+    fread(&conteudo_2, sizeof(int), 1, arqstemp[arquivo_base + 1]);
     printf("Cont 2: %i\n",conteudo_2);
     if(conteudo_2 < menor){
       menor = conteudo_2;
@@ -87,7 +95,7 @@ int ler_menor_arquivos(int deslocamento_base, int arquivo_base, int *deslocament
   }
   // CONTEUDO TERCEIRO ARQUIVO
   if(*deslocamento_3 < deslocamento_base + 3){
-    fread(&conteudo_3, sizeof(int), *deslocamento_3 + 1, arqstemp[arquivo_base + 2]);
+    fread(&conteudo_3, sizeof(int), 1, arqstemp[arquivo_base + 2]);
     printf("Cont 3: %i\n",conteudo_3);
     if(conteudo_3 < menor){
       menor = conteudo_3;
@@ -98,7 +106,6 @@ int ler_menor_arquivos(int deslocamento_base, int arquivo_base, int *deslocament
   // ERRO
   if (menor == VALOR_GRANDE) return -1;
   printf("Menor: %i",menor);
-  printf("\t%i %i %i\n", *deslocamento_1, *deslocamento_2, *deslocamento_3);
   // ANDA O PONTEIRO DO ARQUIVO MENOR
   (*arq_menor)++;
   // RETORNA MENOR VALOR
@@ -115,6 +122,7 @@ void intercalacao_balanceada(int num_caminhos, FILE **arqstemp, char *nome_arq){
   // NOVOS ARQUIVOS (3 a 5)
   abre_arqs_temp(num_caminhos, num_caminhos*2, nome_arq, arqstemp, "wb");
 
+  printf("\t%i\n",ler_menor_arquivos(0, 0, &i_1, &i_2, &i_3, arqstemp, nome_arq));
   printf("\t%i\n",ler_menor_arquivos(0, 0, &i_1, &i_2, &i_3, arqstemp, nome_arq));
   printf("\t%i\n",ler_menor_arquivos(0, 0, &i_1, &i_2, &i_3, arqstemp, nome_arq));
 
