@@ -2,254 +2,226 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include "quicksort.h"
+#include "bubblesort.h"
 
 #define RAM 5
-#define NUM_NUMS 16
+#define NUM_NUMS 22
 #define NUM_CAMINHOS 3
 #define VALOR_GRANDE 99999
 
+FILE **ARQUIVOS_FINAIS = NULL;
+int TOTAL_ARQUIVOS = 0;
+
 // Cria um arquivo temporario chamado nome com tam numeros aleatorios.
 // Os numeros gerados sÃ£o mostrados na tela.
-void cria_arq_rand(char *nome, int tam){
-  FILE *arq;
-  int num,j=0;
-  arq = fopen(nome,"wb");
+void cria_random(char *nome, int tam){
+  FILE *arquivo;
+  arquivo = fopen(nome,"w");
+  int aleatorio;
 
-  for (int i = 0; i < tam; i++) {
-    num = rand()%100;
-    fwrite(&num, sizeof(num), 1, arq);
-    printf("%d:%d\t",j++,num);
-    if (j%RAM==0)
-      printf("\n");
+  for(int i=0; i < tam; i++){
+    aleatorio = rand()%26; //0 a 25
+    aleatorio += 'A'; // A a Z
+    fputc(aleatorio, arquivo);
   }
-  printf("\n");
-  printf("\n");
-//  fflush(arq); // garante que tudo foi gravado antes de fechar
-  fclose(arq);
+
+  fclose(arquivo);
 }
 
-// Le um aquivo com numeros inteiros e mostra-os na tela.
-void le_arq(char *nome){
-  FILE *arq;
-  int num;
-  int i=0;
-
-  arq = fopen(nome,"rb");
-
-  while( 1 == fread(&num,sizeof(num),1,arq)){
-    printf("%d:%d\t",i++,num);
-    if (i%RAM==0)
-      printf("\n");
-  }
-  printf("\n");
-  if (!feof(arq))
-    printf("Houston!\n\n"); // teoricamente nunca devemos ver isso!
+char dado(FILE *arquivo){
+  int byte = ftell(arquivo);
+  char letra = fgetc(arquivo);
+  fseek(arquivo, byte, 0);
+  return letra;
 }
 
-void fecha_arqs(int num, FILE **arqs){
-  for (int i = 0; i < num; i++){
-    //fflush(arqs[i]); // garante que tudo foi gravado antes de fechar
-    fclose(arqs[i]);
-  }
+void alocar_novos(int ultimo, int novos, FILE **arquivos_temporarios){
+  arquivos_temporarios = (FILE**) realloc(arquivos_temporarios, sizeof(FILE*) * (ultimo + novos));
 }
 
-void abre_arqs_temp(int inicio, int fim, char *nome_arq, FILE **arqstemp, char *como){
-  char nome_arq_temp[20];
-  for (int i=inicio;i<fim;i++){
-    // cria nome do arq temporario e abre
-    sprintf(nome_arq_temp,"%s.%d",nome_arq,i);
-    arqstemp[i]=fopen(nome_arq_temp, como);
-  }
-}
+void intercala_arquivos(int arquivo_inicial, int arquivo_final, FILE **arquivos_temporarios, char *nome_arquivo, int tamanho_divisao){
+  int rodada = 1;
+  abrir_arquivos(arquivo_inicial, arquivo_final, nome_arquivo, arquivos_temporarios, "r");
+  int qnt_arquivos = arquivo_final - arquivo_inicial;
+  char buffer[RAM];
+  int total_lidos = 0;
+  int menor, tamanho_memoria = 0;
+  int indice_arquivos = 0, idx_arquivo = 0;
+  int aux_rodada = 0;
 
-// VERIFICAR FINAL DO ARQUIVO
-int final_arquivo(FILE* arqtemp, int byte){
-  int valor_1, byte_pos_ler;
-  // SERVEM SO PRA PULAR O PONTEIRO
-  fread(&valor_1, sizeof(int), 1, arqtemp);
-  fread(&valor_1, sizeof(int), 1, arqtemp);
-  byte_pos_ler = ftell(arqtemp); // BUSCA A ATUAL DISTANCIA DO COMEÇO
-  if(byte == byte_pos_ler) return 1; // FINAL DO ARQUIVO
-  fseek(arqtemp, byte, 0); // RETORNAR AO INICIO
-  return 0; // NÃO CHEGOU AO FINAL
-}
+  if(tamanho_divisao >= NUM_NUMS){ // 1 arquivo apenas
 
-// RETORNAR MENOR VALOR ENTRE OS ARQUIVOS E INCREMENTAR O PONTEIRO
-int ler_menor_arquivos(int deslocamento_base, int arquivo_base, int *deslocamento_1, int *deslocamento_2, int *deslocamento_3, FILE **arqstemp, char *nome_arq, int tamanho_divisao){
+    abrir_arquivos(arquivo_final, arquivo_final+1, nome_arquivo, arquivos_temporarios, "w");
 
-  int conteudo_1, conteudo_2, conteudo_3, menor = VALOR_GRANDE;
-  int *arq_menor;
-  int final_arquivo_1 = 0, final_arquivo_2 = 0, final_arquivo_3 = 0;
+    while(total_lidos < NUM_NUMS){
+      while((total_lidos < NUM_NUMS) && (tamanho_memoria < RAM) && (buffer[tamanho_memoria] = menor_arquivos(arquivo_inicial, arquivo_final, arquivos_temporarios, nome_arquivo, tamanho_divisao, rodada)) != -1){
+        tamanho_memoria++;
+        total_lidos++;
+      }
+      for(int j = 0; j<tamanho_memoria;j++){
+        fputc(buffer[j], arquivos_temporarios[arquivo_final]);
+        //printf("[%i] - %c\n",j,buffer[j]);
+      }
 
-  // FAZER COM QUE OS ARQUIVOS LEIAM NAS POSIÇÕES CORRETAS SE NÃO TIVEREM CHEGADO AO FINAL
-  fseek(arqstemp[arquivo_base], (deslocamento_base + *deslocamento_1) * sizeof(int), 0);
-  fseek(arqstemp[arquivo_base + 1], (deslocamento_base + *deslocamento_2) * sizeof(int), 0);
-  fseek(arqstemp[arquivo_base + 2], (deslocamento_base + *deslocamento_3) * sizeof(int), 0);
-
-  // ARQUIVOS CHEGARAM AO FINAL / PROBLEMA NO EOF
-  final_arquivo_1 = final_arquivo(arqstemp[arquivo_base], ftell(arqstemp[arquivo_base]));
-  final_arquivo_2 = final_arquivo(arqstemp[arquivo_base+1], ftell(arqstemp[arquivo_base+1]));
-  final_arquivo_3 = final_arquivo(arqstemp[arquivo_base+2], ftell(arqstemp[arquivo_base+2]));
-
-  // CONTEUDO PRIMEIRO ARQUIVO
-  if(*deslocamento_1 < tamanho_divisao && !final_arquivo_1){
-    fread(&conteudo_1, sizeof(int), 1, arqstemp[arquivo_base]);
-    if(conteudo_1 < menor){
-      menor = conteudo_1;
-      arq_menor = deslocamento_1;
+      tamanho_memoria = 0; // RESETAR MEMORIA
+      for(int j = 0; j < NUM_CAMINHOS; j++){
+        if(dado(arquivos_temporarios[arquivo_inicial+j]) == -1 || byte(arquivos_temporarios[arquivo_inicial+j])%tamanho_divisao == 0){
+          aux_rodada++;
+        }
+      }
+      if(aux_rodada == NUM_CAMINHOS) rodada++; // AUMENTAR RODADA
+      aux_rodada = 0;
     }
-  }
-  // CONTEUDO SEGUNDO ARQUIVO
-  if(*deslocamento_2 < tamanho_divisao && !final_arquivo_2){
-    fread(&conteudo_2, sizeof(int), 1, arqstemp[arquivo_base + 1]);
-    if(conteudo_2 < menor){
-      menor = conteudo_2;
-      arq_menor = deslocamento_2;
+    fechar_arquivos(arquivo_final, arquivo_final+1, arquivos_temporarios);
+
+  }else{ // mais de 1 arquivo
+    //alocar_novos(arquivo_final, NUM_CAMINHOS, arquivos_temporarios);
+    abrir_arquivos(arquivo_final, arquivo_final+NUM_CAMINHOS, nome_arquivo, arquivos_temporarios, "w");
+    while(total_lidos < NUM_NUMS){
+      while((total_lidos < NUM_NUMS) && (tamanho_memoria < RAM) && (buffer[tamanho_memoria] = menor_arquivos(arquivo_inicial, arquivo_final, arquivos_temporarios, nome_arquivo, tamanho_divisao, rodada)) != -1){
+        tamanho_memoria++;
+        total_lidos++;
+      }
+
+      idx_arquivo = arquivo_final + indice_arquivos;
+
+      for(int j = 0; j<tamanho_memoria;j++){
+        fputc(buffer[j], arquivos_temporarios[idx_arquivo]);
+        //printf("[%i] - %c\n",j,buffer[j]);
+      }
+      //printf("idx: %i \t%i", idx_arquivo,tamanho_memoria);
+      //if(idx_arquivo == 6) exit(0);
+
+      indice_arquivos++;
+      indice_arquivos %= NUM_CAMINHOS;
+
+      tamanho_memoria = 0; // RESETAR MEMORIA
+      for(int j = 0; j < NUM_CAMINHOS; j++){
+        if(dado(arquivos_temporarios[arquivo_inicial+j]) == -1 || byte(arquivos_temporarios[arquivo_inicial+j])%tamanho_divisao == 0){
+          aux_rodada++;
+        }
+      }
+      if(aux_rodada == NUM_CAMINHOS) rodada++; // AUMENTAR RODADA
+      aux_rodada = 0;
     }
+    fechar_arquivos(arquivo_final, arquivo_final+NUM_CAMINHOS, arquivos_temporarios);
   }
-  // CONTEUDO TERCEIRO ARQUIVO
-  if(*deslocamento_3 < tamanho_divisao && !final_arquivo_3){
-    fread(&conteudo_3, sizeof(int), 1, arqstemp[arquivo_base + 2]);
-    if(conteudo_3 < menor){
-      menor = conteudo_3;
-      arq_menor = deslocamento_3;
+}
+
+int byte(FILE *arquivo){
+  return ftell(arquivo);
+}
+
+char menor_arquivos(int arquivo_inicial, int arquivo_final, FILE **arquivos_temporarios, char *nome_arquivo, int tamanho_divisao, int rodada){
+
+  int arquivos = arquivo_final - arquivo_inicial;
+  int idx_menor = -1;
+  int menor = VALOR_GRANDE, valor_analise;
+
+  for(int i=0; i<arquivos; i++){
+    if(byte(arquivos_temporarios[arquivo_inicial+i]) < tamanho_divisao*rodada){ // NAO PODE PASSAR DO LIMITE DA DIVISAO
+      valor_analise = dado(arquivos_temporarios[arquivo_inicial+i]); // BUSCA DADO SEM AVANÇAR
+      if(valor_analise != -1 && valor_analise < menor){
+        menor = valor_analise;
+        idx_menor = arquivo_inicial+i;
+      }
     }
   }
 
   // ERRO
-  if (menor == VALOR_GRANDE) return -1;
-  // ANDA O PONTEIRO DO ARQUIVO MENOR
-  (*arq_menor)++;
-  // RETORNA MENOR VALOR
-  return menor;
-}
-
-int intercala_arquivos(int arquivo_inicial, int arquivo_final, char* nome_arq, FILE** arqstemp, int quantia_a_criar, int tamanho_divisao){
-
-  int total_lidos = 0, tamanho_memoria = 0;
-  int buffer[RAM];
-  int i_1 = 0, i_2 = 0, i_3 = 0;
-  int deslocamento_base = 0, arquivo_base;
-  int indice_arquivo = 0; // INDICE ONDE VAI SER ESCRITO
-  int idx_arquivo_atual = 0;
-  int arquivos_criados = 1;
-
-  int quantia_arquivos_base = arquivo_final - arquivo_inicial;
-
-  if(arquivo_final - arquivo_inicial == 0){
-    // ERRO
+  if(menor == VALOR_GRANDE && idx_menor == -1){
+    printf("\nERRO MENOR VALOR GRANDE.\n");
     return -1;
   }
+  return pega_dado(arquivos_temporarios[idx_menor]);
+}
 
-  arquivo_base = arquivo_inicial;
-  // ABRIR ARQUIVOS
-  abre_arqs_temp(0, arquivo_final, nome_arq, arqstemp, "rb");
-  // CRIAR NOVOS ARQUIVOS
-  abre_arqs_temp(arquivo_final, arquivo_final+quantia_a_criar, nome_arq, arqstemp, "wb");
+// INCREMENTA PONTEIRO
+char pega_dado(FILE *arquivo){
+  char l = fgetc(arquivo);
+  return l;
+}
 
-  while(total_lidos < NUM_NUMS){ // ENQUANTO AINDA EXISTIREM VALORES PRA ORDENAR / RODADAS DE ORDENAÇÃO
+void intercalacao_balanceada(int num_caminhos, FILE **arquivos_temporarios, char *nome_arquivo){
+  int tamanho_divisao = RAM;
+  int arquivo_inicial = 0, arquivo_final = num_caminhos;
 
-    while(total_lidos < NUM_NUMS && tamanho_memoria < RAM && (buffer[tamanho_memoria] = ler_menor_arquivos(deslocamento_base, arquivo_base, &i_1, &i_2, &i_3, arqstemp, nome_arq, tamanho_divisao)) != -1){
-      tamanho_memoria++;
-      total_lidos++;
-    } // BUFFER CHEIO (5 números)
+  while(tamanho_divisao < NUM_NUMS){
+    intercala_arquivos(arquivo_inicial, arquivo_final, arquivos_temporarios, nome_arquivo, tamanho_divisao);
+    arquivo_inicial = arquivo_final;
+    arquivo_final += num_caminhos;
+    tamanho_divisao += tamanho_divisao * num_caminhos;
+  }
 
-    // GUARDAR VALORES DO BUFFER
-    indice_arquivo = arquivo_final + idx_arquivo_atual; // ( 3 4 5 3 4 5)
-    // CERTEZA DO PONTEIRO CORRETO
-    fseek(arqstemp[indice_arquivo], 0, SEEK_END);
-    fwrite(buffer, sizeof(int)*tamanho_memoria, 1, arqstemp[indice_arquivo]);
+  // SE SAIU SÓ FALTA O ÚLTIMO
+  intercala_arquivos(arquivo_inicial, arquivo_final, arquivos_temporarios, nome_arquivo, tamanho_divisao);
 
-    if(quantia_arquivos_base < 2) i_2 = tamanho_divisao;
-    if(quantia_arquivos_base < 3) i_3 = tamanho_divisao;
+  TOTAL_ARQUIVOS = arquivo_final + 1;
+  ARQUIVOS_FINAIS = arquivos_temporarios;
+  exibir_dados(ARQUIVOS_FINAIS, TOTAL_ARQUIVOS, nome_arquivo);
+}
 
-    // ATUALIZAR INFORMACOES PRA PROXIMO ARQUIVO
-    if((i_1 == tamanho_divisao && i_2 == tamanho_divisao && i_3 == tamanho_divisao)){ // TROCAR DE FITA
-      idx_arquivo_atual++; // PROXIMO ARQUIVO
-      idx_arquivo_atual = idx_arquivo_atual % quantia_a_criar; // LIMITAR OS ARQUIVOS ( 0 1 2 0 1 2 0 )
-      deslocamento_base += tamanho_divisao; // ESSES VALORES JA FORAM LIDOS, PASSAR PRA SEGUNDA LINHA DOS ARQUIVOS
-      // ZERAR OS DESLOCAMENTOS
-      i_1 = 0;
-      i_2 = 0;
-      i_3 = 0;
-      arquivos_criados++;
+void abrir_arquivos(int inicio, int fim, char *nome_arq, FILE **arquivos_temporarios, char *modo){
+  char nome_temporario[20];
+
+  for(int i = inicio; i < fim; i++){
+    sprintf(nome_temporario, "%d-%s", i, nome_arq);
+    arquivos_temporarios[i] = fopen(nome_temporario, modo);
+  }
+}
+
+void cria_temporarios(int num_caminhos, char *nome_arq){
+  FILE *arquivo = fopen(nome_arq, "r");
+  FILE **arquivos_temporarios = (FILE**) malloc(sizeof(FILE*) * num_caminhos * RAM); // VETOR DE ARQUIVOS TEMPORARIOS
+  int buffer[RAM], quantia_lidos, idx = 0;
+
+  abrir_arquivos(0, num_caminhos, nome_arq, arquivos_temporarios, "w");
+
+  // VALORES INTEIROS
+  while(RAM == (quantia_lidos = fread(&buffer, sizeof(char), RAM, arquivo))){
+    bubble_sort(buffer, quantia_lidos);
+    fwrite(buffer, sizeof(char) * RAM, 1, arquivos_temporarios[idx]);
+    idx++;
+    idx %= num_caminhos;
+  }
+
+  // VALORES RESTANTES
+  bubble_sort(buffer, quantia_lidos);
+  fwrite(buffer, sizeof(char) * quantia_lidos, 1, arquivos_temporarios[idx]);
+
+  // FECHAR ARQUIVOS
+  fechar_arquivos(0, num_caminhos, arquivos_temporarios);
+  fclose(arquivo);
+
+  intercalacao_balanceada(num_caminhos, arquivos_temporarios, nome_arq);
+}
+
+void exibir_dados(FILE **arquivos_temporarios, int total, char *nome_arquivo){
+  abrir_arquivos(0, total, nome_arquivo, arquivos_temporarios, "r");
+  char l;
+  for(int i = 0; i < total; i++){
+    printf("Arquivo [%i]: %i-temporario.txt\n\n    ",i,i);
+    while((l = getc(arquivos_temporarios[i])) != -1){
+      printf("%c ", l);
     }
-    tamanho_memoria = 0; // ZERA MEMORIA (buffer)
+    printf("\n\n\n");
+    if((i+1)%3 == 0) printf("\n\n\n");
   }
-
-
-  fecha_arqs(arquivo_final+quantia_a_criar, arqstemp);
-  return quantia_a_criar;
 }
 
-int intercalacao_balanceada(int num_caminhos, FILE **arqstemp, char *nome_arq){
-  int arquivos_existentes = num_caminhos; // 3
-  int total_arquivos = num_caminhos;
-
-  int num_arquivos_criados;
-  int tamanho_divisao = RAM; // FITAS ESTAO DIVIDIDAS DE ACORDO COM A RAM ( 5 EM 5 )
-
-  int arquivo_base_inicial = 0, arquivo_base_final = num_caminhos;
-  int quantia_a_criar = 3;
-
-  while(tamanho_divisao < NUM_NUMS){ // ITERAR ATÉ FORMAR 1 FITA APENAS
-    // INTERCALA OS ARQUIVOS
-    num_arquivos_criados = intercala_arquivos(arquivo_base_inicial, arquivo_base_final, nome_arq, arqstemp, quantia_a_criar, tamanho_divisao);
-    arquivo_base_inicial = arquivo_base_final;
-    arquivo_base_final += quantia_a_criar;
-    total_arquivos += quantia_a_criar;
-
-    // ATUALIZA O TAMANHO DAS DIVISOES DE ACORDO COM A QUANTIA DE ARQUIVOS CRIADOS
-    tamanho_divisao += tamanho_divisao * quantia_a_criar;
+void fechar_arquivos(int inicio, int fim, FILE **arquivos){
+  for(int i = inicio; i < fim; i++){
+    fclose(arquivos[i]);
   }
-  num_arquivos_criados = intercala_arquivos(arquivo_base_inicial, arquivo_base_inicial+quantia_a_criar, nome_arq, arqstemp, 1, tamanho_divisao);
-  total_arquivos++;
-
-  //fecha_arqs(total_arquivos,arqstemp);
-
-  return total_arquivos;
-
 }
 
-int distribui(int num_caminhos, char *nome_arq){
-  FILE *arq = fopen(nome_arq,"rb");
-
-  FILE **arqstemp = malloc(sizeof(FILE *) * num_caminhos * RAM);
-  int buffer[RAM], i=0, lidos;
-
-  abre_arqs_temp(0,num_caminhos,nome_arq,arqstemp,"wb"); //abre args temporarios
-
-  while( RAM == (lidos = fread(&buffer, sizeof(int), RAM, arq))){ // le o arquivo de entrada para a RAM
-    quick_sort(buffer,RAM); // ordena
-    fwrite(buffer, sizeof(int)*RAM, 1, arqstemp[i]); // escreve para o arquivo temporario atual
-    i++;
-    i %= num_caminhos; // incrementa o arquivo temporario
-  }
-  // trata os ultimos numeros do arquivo (%5)
-  quick_sort(buffer,lidos); // ordena
-  fwrite(buffer, sizeof(int)*lidos, 1, arqstemp[i]); // escreve para o arquivo temporario atual
-  fecha_arqs(num_caminhos, arqstemp);
-
-  // INTERCALA BALANCEADO
-  return intercalacao_balanceada(num_caminhos, arqstemp, nome_arq);
-}
 
 int main(){
 
-  char nome_arq[]="teste.arq";
+  char nome_arq[] = "temporario.txt";
   char *nome_arq_temp = malloc(sizeof(char)*strlen(nome_arq)+3); // suporta ate .99 arquivos
 
-  cria_arq_rand(nome_arq, NUM_NUMS); // CRIA NUMEROS
-  int arquivos = distribui(NUM_CAMINHOS, nome_arq); // DISTRIBUI PARA AS FITAS
-  for (int i=0; i<arquivos; i++){
+  cria_random(nome_arq, NUM_NUMS); // CRIA ARQUIVO TEMPORARIO
+  cria_temporarios(NUM_CAMINHOS, nome_arq); // CRIA NOVOS TEMPORARIOS E INICIA A INTERCALAÇÃO
 
-    if(i%3==0) printf("\n\n\n");
-
-
-    if(i == arquivos) printf("\n\n\tFita final:\n");
-    sprintf(nome_arq_temp, "%s.%d", nome_arq, i);
-    printf("------- %s:\n", nome_arq_temp);
-    le_arq(nome_arq_temp);
-  }
 }
