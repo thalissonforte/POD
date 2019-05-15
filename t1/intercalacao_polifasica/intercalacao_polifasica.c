@@ -6,7 +6,7 @@
 #include "quicksort.h"
 
 #define RAM 5
-#define NUM_NUMS 20
+#define NUM_NUMS 1
 #define VALOR_GRANDE 99999
 #define ARQ_TEMP 3
 
@@ -91,8 +91,10 @@ void resto(char *nome_arq, FILE **arqstemp,int indice,int** vet,int i){
     fclose(arqstemp[indice]);
 }
 
+
+
 void intercalacao_polifasica(FILE **arqstemp,char *nome_arq,int n_de_blocos,int fibo,int n){
-    int qtd_no_blocos=2,vet_aux[fibo],aux,no_de_blocos=n_de_blocos;
+    int qtd_no_blocos=2,vet_aux[fibo],aux,no_de_blocos=n_de_blocos,vet_temp1[fibo],vet_temp2[fibo];
 
     int i=0,arquivo_vazio=2,arquivo_maior=0,arquivo_menor=1;
     //para quando qtd por bloco for igual ao n de fibonacci
@@ -109,15 +111,32 @@ void intercalacao_polifasica(FILE **arqstemp,char *nome_arq,int n_de_blocos,int 
       while(!feof(arqstemp[arquivo_menor])){
         if (i>=qtd_no_blocos*no_de_blocos) break;
         int j;
+        //le pro vetor temp de cada
         for(j=0;j<fibo_ant(qtd_no_blocos);j++){
-            fread(&vet_aux[j], sizeof(int), 1, arqstemp[arquivo_maior]);}
-        aux=j;
-        for(j;j<fibo_ant(fibo_ant(qtd_no_blocos))+aux;j++){
-            fread(&vet_aux[j], sizeof(int), 1, arqstemp[arquivo_menor]);;
+            fread(&vet_temp1[j], sizeof(int), 1, arqstemp[arquivo_maior]);}
+        for(j=0;j<fibo_ant(fibo_ant(qtd_no_blocos));j++){
+            fread(&vet_temp2[j], sizeof(int), 1, arqstemp[arquivo_menor]);}
+        int ind_vet_maior=0,ind_vet_menor=0;
+        //intercala
+        for(j=0;j<fibo_ant(fibo_ant(qtd_no_blocos))+fibo_ant(qtd_no_blocos);j++){
+            if(ind_vet_maior<fibo_ant(qtd_no_blocos) && ind_vet_menor<fibo_ant(fibo_ant(qtd_no_blocos))){
+                if(vet_temp1[ind_vet_maior]<vet_temp2[ind_vet_menor]){
+                    vet_aux[j] = vet_temp1[ind_vet_maior];
+                    ind_vet_maior++;
+                }else{
+                    vet_aux[j]=vet_temp2[ind_vet_menor];
+                    ind_vet_menor++;
+                }
+            }else if(ind_vet_maior<fibo_ant(qtd_no_blocos)){
+                vet_aux[j]=vet_temp1[ind_vet_maior];
+                ind_vet_maior++;
+            }else{
+                vet_aux[j]=vet_temp2[ind_vet_menor];
+                ind_vet_menor++;
+            }
         }
-        //ordena bloco
-        quick_sort(vet_aux,qtd_no_blocos);
         j=0,aux=i;
+
         //coloca no buffer
         for(i;i<aux+qtd_no_blocos;i++){
           if(i<qtd_no_blocos*no_de_blocos) buffer[i] =vet_aux[j];
@@ -162,22 +181,27 @@ void distribui_poli(char *nome_arq,int n){
   int fibo_anterior=fibo-fibo_atual;
   int buffer[fibo_atual], i=0;
   abre_arqs_temp(0,ARQ_TEMP-1,nome_arq,arqstemp,"wb"); //abre args temporarios
-
-  //Precisa refazer para n que não é fibonacci
-  fread(&buffer, sizeof(int), fibo_atual, arq); // le o arquivo de entrada para a RAM
-  fwrite(buffer, sizeof(int)*fibo_atual, 1, arqstemp[i]); // escreve para o arquivo temporario atual
-  fread(&buffer, sizeof(int), n-fibo_atual, arq); // restantes
-  if(n!=fibo){
-    int i;
-    for(i=n-fibo_atual;i<fibo_anterior;i++){
-        buffer[i]=VALOR_GRANDE;
+  if (NUM_NUMS==1){
+    fread(&buffer, sizeof(int), NUM_NUMS, arq);
+    fwrite(buffer, sizeof(int)*NUM_NUMS, 1, arqstemp[0]);
+    fecha_arqs(ARQ_TEMP-1, arqstemp);
+  }else{
+    //Precisa refazer para n que não é fibonacci
+    fread(&buffer, sizeof(int), fibo_atual, arq); // le o arquivo de entrada para a RAM
+    fwrite(buffer, sizeof(int)*fibo_atual, 1, arqstemp[i]); // escreve para o arquivo temporario atual
+    fread(&buffer, sizeof(int), n-fibo_atual, arq); // restantes
+    if(n!=fibo){
+        int i;
+        for(i=n-fibo_atual;i<fibo_anterior;i++){
+            buffer[i]=VALOR_GRANDE;
+        }
     }
+    // trata os ultimos numeros do arquivo
+    fwrite(buffer, sizeof(int), fibo_anterior, arqstemp[1]); // escreve para o arquivo temporario atual
+    fecha_arqs(ARQ_TEMP-1, arqstemp);
+    // TODO
+    intercalacao_polifasica(arqstemp, nome_arq,fibo_anterior,fibo,n);
   }
-  // trata os ultimos numeros do arquivo
-  fwrite(buffer, sizeof(int), fibo_anterior, arqstemp[1]); // escreve para o arquivo temporario atual
-  fecha_arqs(ARQ_TEMP-1, arqstemp);
-  // TODO
-  intercalacao_polifasica(arqstemp, nome_arq,fibo_anterior,fibo,n);
 }
 
 
