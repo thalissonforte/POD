@@ -6,10 +6,10 @@
 #include "quicksort.h"
 
 #define RAM 5
-#define NUM_NUMS 1
+#define NUM_NUMS 20
 #define VALOR_GRANDE 99999
 #define ARQ_TEMP 3
-
+int ARQS = ARQ_TEMP;
 // Cria um arquivo temporario chamado nome com tam numeros aleatorios.
 // Os numeros gerados sÃ£o mostrados na tela.
 void cria_arq_rand(char *nome, int tam){
@@ -180,21 +180,23 @@ void distribui_poli(char *nome_arq,int n){
   int fibo_atual=fibo_ant(fibo);
   int fibo_anterior=fibo-fibo_atual;
   int buffer[fibo_atual], i=0;
-  abre_arqs_temp(0,ARQ_TEMP-1,nome_arq,arqstemp,"wb"); //abre args temporarios
   if (NUM_NUMS==1){
-    fread(&buffer, sizeof(int), NUM_NUMS, arq);
-    fwrite(buffer, sizeof(int)*NUM_NUMS, 1, arqstemp[0]);
-    fecha_arqs(ARQ_TEMP-1, arqstemp);
+    abre_arqs_temp(0,1,nome_arq,arqstemp,"wb"); //abre args temporarios
+    ARQS = 1;
+    fread(&buffer, sizeof(int), 1, arq);
+    fwrite(buffer, sizeof(int), 1, arqstemp[0]);
+    fecha_arqs(1, arqstemp);
   }else{
+    abre_arqs_temp(0,ARQ_TEMP-1,nome_arq,arqstemp,"wb"); //abre args temporarios
     //Precisa refazer para n que não é fibonacci
     fread(&buffer, sizeof(int), fibo_atual, arq); // le o arquivo de entrada para a RAM
     fwrite(buffer, sizeof(int)*fibo_atual, 1, arqstemp[i]); // escreve para o arquivo temporario atual
     fread(&buffer, sizeof(int), n-fibo_atual, arq); // restantes
     if(n!=fibo){
-        int i;
-        for(i=n-fibo_atual;i<fibo_anterior;i++){
-            buffer[i]=VALOR_GRANDE;
-        }
+      int i;
+      for(i=n-fibo_atual;i<fibo_anterior;i++){
+          buffer[i]=VALOR_GRANDE;
+      }
     }
     // trata os ultimos numeros do arquivo
     fwrite(buffer, sizeof(int), fibo_anterior, arqstemp[1]); // escreve para o arquivo temporario atual
@@ -241,9 +243,12 @@ int main(){
   char *nome_arq_temp = malloc(sizeof(char)*strlen(nome_arq)+3); // suporta ate .99 arquivos
   cria_arq_rand(nome_arq, NUM_NUMS);
   distribui_poli(nome_arq,NUM_NUMS);
-  for (int i=0; i<ARQ_TEMP; i++){
+
+  for (int i=0; i<ARQS; i++){
     sprintf(nome_arq_temp, "%s.%d", nome_arq, i);
     printf("------- %s:\n", nome_arq_temp);
     le_arq(nome_arq_temp);
   }
+
+
 }

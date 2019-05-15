@@ -21,7 +21,7 @@ void quick_sort(int vet[], int tam){
   menor = 0;
   maior = tam - 1;
 
-  pivo = vet[menor];                                                                                                     
+  pivo = vet[menor];
 
   while(menor <= maior){
     while(vet[menor] < pivo)
@@ -29,7 +29,7 @@ void quick_sort(int vet[], int tam){
     while(vet[maior] > pivo)
       maior--;
 
-    //troca 
+    //troca
     if ( menor <= maior ) {
         aux = vet[menor];
         vet[menor] = vet[maior];
